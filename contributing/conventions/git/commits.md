@@ -36,10 +36,6 @@ If the body covers 2+ points, use a bullet list.
 Every commit must include a scope. Use the scope that best matches the
 area of change:
 
-`wiki` | `instructors` | `docs` | `contributing` | `readme` | `caddy` | `lab` |
-`frontend` | `backend` | `tests` | `vscode` | `git` | `github` |
-`agent` | `nix` | `docker` | `database` | `markdownlint`
-
 ### 3.1. Scope mapping
 
 - `wiki` — `wiki/` pages
