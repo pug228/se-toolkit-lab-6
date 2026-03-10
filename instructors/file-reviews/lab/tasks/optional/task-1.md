@@ -1,10 +1,10 @@
 # Review: `lab/tasks/optional/task-1.md`
 
-**Date:** 2026-03-07
+**Date:** 2026-03-10
 
 **Convention files used:**
 
-- `contributing/conventions/writing/tasks.md` — Section 1 (task document template), Section 4 (task design principles), Section 5 (conceptual review dimensions D1–D12)
+- `contributing/conventions/writing/tasks.md` — Section 1 (task document template), Section 3 (steps with sub-steps), Section 4 (task design principles), Section 5 (conceptual review dimensions D1–D12)
 - `contributing/conventions/writing/common.md` — writing conventions (4.1–4.26)
 
 ---
@@ -13,11 +13,11 @@
 
 ### D1. Learning objective clarity
 
-1. **[Medium]** Line 9 — The Purpose reads "Set up `Grafana` as an alternative dashboard tool, connect it to `PostgreSQL`, and build visualizations using SQL queries." This describes *actions* the student will perform, not a *learning outcome*. A stronger Purpose would state what the student learns (e.g., "Learn how a dedicated dashboarding tool differs from a hand-built front-end dashboard by connecting `Grafana` to `PostgreSQL` and building visualizations.").
+1. **[Low]** Line 9 — The Purpose lists three actions ("Set up `Grafana`… connect it to `PostgreSQL`… build visualizations using `SQL` queries") rather than stating a single concrete learning outcome. A stronger Purpose would focus on what the student learns, e.g., "Compare a dedicated dashboarding tool (`Grafana`) with a hand-built front-end dashboard by connecting `Grafana` to `PostgreSQL` and building visualizations." Suggested fix: rewrite Purpose to lead with the learning outcome, not the actions.
 
 ### D2. Step-by-step completeness
 
-1. **[Low]** Line 42 — References `GF_SECURITY_ADMIN_USER` and `GF_SECURITY_ADMIN_PASSWORD` in `.env.docker.secret` without links. Students unfamiliar with the file may not know where to find it or what it contains. The file name should be linked per convention 4.22.
+1. **[Low]** Line 90 — Step 1.5 item 2 says "Add at least two panels. Example ideas:" and then provides example queries, but does not give explicit step-by-step instructions for creating a panel (e.g., "Click **Add visualization**", "Select the data source", "Paste the query"). A student unfamiliar with `Grafana` may not know how to create a panel from the query alone. Suggested fix: add 2–3 explicit sub-steps for creating the first panel, then let the student replicate for the second.
 
 ### D3. Student navigation
 
@@ -25,12 +25,13 @@ No issues found.
 
 ### D4. Checkpoints and feedback loops
 
-1. **[Medium]** Lines 46–63 (Step 1.3) — After running `docker compose up`, there is no expected output or checkpoint showing the student that `Grafana` started successfully. A student whose container failed to start would proceed to the browser step and see nothing, with no guidance on what went wrong.
-2. **[Medium]** Lines 44–63 (Step 1.3) — This step involves `Docker` infrastructure (starting containers, port binding) but has no collapsible troubleshooting block. Common failures include port 3000 already in use or containers exiting immediately.
+1. **[Medium]** Lines 34–43 ([Step 1.2](lab/tasks/optional/task-1.md#12-enable-grafana-in-docker-compose)) — No checkpoint after uncommenting the `Grafana` service block. The student cannot verify the uncommenting was done correctly before starting `Docker`. A syntax error or incomplete uncomment would surface only after `docker compose up` fails. Suggested fix: add a brief checkpoint (e.g., "The `grafana` service should appear without `#` characters at the start of each line").
+2. **[Medium]** Lines 45–54 ([Step 1.3](lab/tasks/optional/task-1.md#13-start-grafana)) — This step starts `Docker` containers (infrastructure) but has no collapsible troubleshooting block. Common failures include port 3000 already in use and containers exiting immediately. Suggested fix: add a `<details><summary><b>Troubleshooting (click to open)</b></summary>` block covering these two symptoms.
+3. **[Low]** Lines 87–128 ([Step 1.5](lab/tasks/optional/task-1.md#15-build-a-dashboard)) — No checkpoint after building the dashboard. The student has no way to confirm the dashboard looks correct before saving. Suggested fix: add a brief description or screenshot of what a finished two-panel dashboard should look like.
 
 ### D5. Acceptance criteria alignment
 
-1. **[Medium]** Line 147 — "The issue contains a reflection comment comparing the two dashboard approaches" is subjective. A reviewer (or autochecker) cannot objectively determine whether a comment adequately "compares" the approaches. Consider requiring specific structure (e.g., "The reflection comment addresses all three questions from step 1.6").
+No issues found.
 
 ### D6. Difficulty and progression
 
@@ -38,7 +39,7 @@ No issues found.
 
 ### D7. Practical usability
 
-1. **[Low]** Lines 59–62 — The login step says to use `admin`/`admin`, but step 1.2 (line 42) offers the option to change credentials. A student who changed the credentials in step 1.2 may be confused by step 1.3 telling them to use `admin`/`admin`. Add a note: "If you changed the credentials in step 1.2, use those instead."
+1. **[Low]** Lines 60–64 — Step 1.3 item 3 says to log in with `admin`/`admin`, but step 1.2 item 4 (line 43) offers the option to change credentials in `.env.docker.secret`. A student who changed them may be confused by the default login instructions. Suggested fix: add a note such as "If you changed the credentials in step 1.2, use those instead."
 
 ### D8. LLM-independence
 
@@ -46,11 +47,12 @@ No issues found.
 
 ### D9. Git workflow coherence
 
-1. **[Medium]** Lines 136–138 — Step 1.7 is titled "Finish the task" but contains only "Close the issue." Per convention, "Finish the task" is the heading for the PR + review ending. This task modifies `docker-compose.yml` (a code change) but does not follow the `Git workflow` (no branch, no PR). Either: (a) add a `Git workflow` step and change the ending to create a PR, or (b) rename the step to match the no-code ending pattern (e.g., close the issue with evidence).
+1. **[Medium]** Lines 138–140 ([Step 1.7](lab/tasks/optional/task-1.md#17-finish-the-task)) — The step is titled "Finish the task" but contains only "Close the issue." Per convention 4.11, "Finish the task" is reserved for the PR + review ending (create PR, get review, merge). The current body matches the no-code ending pattern (close issue with evidence) but uses the wrong heading. Suggested fix: either (a) add `Git workflow` step 1.1, PR creation, and review steps, or (b) rename the step and restructure to match the close-issue-with-evidence pattern.
+2. **[Medium]** Lines 34–43 — The task modifies `docker-compose.yml` (a tracked file) in step 1.2 but does not include a "Follow the `Git workflow`" step and does not ask students to commit or push. This leaves a modified file uncommitted on the VM. Suggested fix: either add the `Git workflow` step and a PR ending, or add a note explaining that this change is local-only and intentionally not committed.
 
 ### D10. Conceptual gaps and misconceptions
 
-No issues found.
+1. **[Low]** Line 41 — Asks students to uncomment the `Grafana` service block without explaining why it was commented out. A brief note (e.g., "The `Grafana` service is commented out by default because it is used only in this optional task") would help students understand the design pattern. Suggested fix: add a `> 🟦 **Note**` block after step 1.2 item 3.
 
 ### D11. Controlled AI steps
 
@@ -58,8 +60,8 @@ Not applicable — no AI-assisted steps in this task.
 
 ### D12. Autochecker verifiability
 
-1. **[High]** Line 146 — "The dashboard has at least 2 panels with data from `PostgreSQL`." It is unclear how the autochecker can verify `Grafana` dashboard content. `Grafana` dashboards live in its internal storage; verifying panel count and data source requires `Grafana` API access, which is not part of the standard autochecker channels (repository checks + VM `SSH`). Suggested fix: either provision the dashboard via a `JSON` file at a known path (checkable via `SSH`) or replace with a criterion the autochecker can verify (e.g., screenshot posted in the issue, or a `Grafana` API endpoint accessible on the VM).
-2. **[High]** Line 147 — "The issue contains a reflection comment comparing the two dashboard approaches" is open-ended free text. The autochecker cannot verify whether the content of a comment adequately "compares" anything. Suggested fix: require a structured format (e.g., three separate answers to the three questions) or replace with a verifiable proxy (e.g., "The issue contains a comment with at least 3 lines").
+1. **[High]** Line 152 — "The dashboard has at least 2 panels with data from `PostgreSQL`." `Grafana` dashboards are stored in its internal database; verifying panel count and data source requires `Grafana` API access, which is not part of the standard autochecker channels (repository checks + VM `SSH`). Suggested fix: either provision the dashboard via a `JSON` file at a known path (checkable via `SSH`), or expose the `Grafana` API and document the check, or replace with a criterion the autochecker can verify (e.g., a screenshot posted in the issue).
+2. **[Medium]** Line 153 — "The issue contains a reflection comment comparing the two dashboard approaches" is open-ended free text. The autochecker can check for comment existence via the `GitHub` API but cannot verify whether the content adequately compares the approaches. Suggested fix: require a structured format (e.g., "The reflection comment addresses all three questions from step 1.6") or constrain to a verifiable proxy (e.g., "The issue contains a comment with at least 3 lines").
 
 ---
 
@@ -67,8 +69,9 @@ Not applicable — no AI-assisted steps in this task.
 
 ### Section 1. Task document template
 
-1. **Line 15** — Missing `<h4>Diagram</h4>` section. The task involves actions across multiple environments (editor for `docker-compose.yml`, terminal for `Docker` commands, browser for `Grafana` UI, `Grafana` connecting to `PostgreSQL`). A Mermaid sequence diagram showing this flow should be added between Context and Table of contents, or an explicit decision to omit it should be justified (single-environment task).
-2. **Lines 136–138** — Step 1.7 "Finish the task" uses the wrong ending pattern. "Finish the task" is reserved for the PR + review flow (create PR, get review). The current content ("Close the issue.") matches the no-code ending but uses the wrong heading name.
+1. **[Medium]** Between lines 13 and 15 — Missing `<h4>Diagram</h4>` section. The task involves actions across multiple environments (editor for `docker-compose.yml`, terminal/VM for `Docker` commands, browser for `Grafana` UI, `Grafana` connecting to `PostgreSQL` via `Docker` network). Convention 1.1 requires a Mermaid sequence diagram when the task involves actions across multiple actors or environments. Suggested fix: add a `sequenceDiagram` showing Developer → VM (Docker) → Browser (Grafana) → PostgreSQL flow.
+2. **[Medium]** Lines 138–140 — Step 1.7 "Finish the task" body doesn't match the template pattern. The template for "Finish the task" requires PR creation and review steps (`1. Create a PR… 2. Get a PR review…`). The current body only has "Close the issue." This is a structural mismatch between the heading and the ending type.
+3. **[Medium]** The task modifies `docker-compose.yml` (step 1.2, line 41) but has no "Follow the `Git workflow`" step (expected as step 1.1 per convention 1.1). If the task is designed as a no-commit exploration, the file modification creates a design inconsistency with the template rules.
 
 ### 4.1. Instructions wording
 
@@ -100,7 +103,7 @@ No issues found.
 
 ### 4.8. Links and cross-references
 
-No issues found.
+1. **[Low]** Line 83 — `docker-compose.yml` is mentioned in prose in section 1.4 but is not linked. Convention 4.8 requires linking a concept or file on its first mention within each section. The file was linked in section 1.2 (line 37) but this is a different `###`-level section. Suggested fix: link to `[`docker-compose.yml`](../../../docker-compose.yml)`.
 
 ### 4.9. Notes, tips, warnings
 
@@ -156,7 +159,7 @@ No issues found.
 
 ### 4.22. Environment variable references
 
-No issues found.
+1. **[Low]** Line 43 — `GF_SECURITY_ADMIN_USER` and `GF_SECURITY_ADMIN_PASSWORD` are referenced as environment variables from `.env.docker.secret` but are not individually linked to their wiki sections per the convention 4.22 pattern (`` [`VARIABLE_NAME`](../../../wiki/dotenv-docker-secret.md#variable_name) ``). The file name is linked correctly but the variable names themselves are not. Suggested fix: link each variable name to its anchor in the wiki, or create the wiki sections if they don't exist.
 
 ### 4.23. Horizontal rules
 
@@ -172,7 +175,7 @@ Not applicable.
 
 ### 4.26. Example IP address
 
-Not applicable (placeholder used).
+Not applicable (placeholder used correctly).
 
 ---
 
@@ -192,12 +195,14 @@ No empty sections found.
 
 | Category | Count |
 |---|---|
-| Conceptual — High | 2 |
-| Conceptual — Medium | 5 |
-| Conceptual — Low | 2 |
-| Convention violations | 2 |
+| Conceptual [High] | 1 |
+| Conceptual [Medium] | 5 |
+| Conceptual [Low] | 5 |
+| Convention [High] | 0 |
+| Convention [Medium] | 3 |
+| Convention [Low] | 2 |
 | TODOs | 0 |
 | Empty sections | 0 |
-| **Total** | **11** |
+| **Total** | **16** |
 
-**Overall assessment:** The task provides a clear, well-structured walkthrough for setting up `Grafana`, with good use of SQL examples and a useful reflection step. The most critical issues are (1) two acceptance criteria that the autochecker cannot verify (dashboard content and reflection quality), and (2) the "Finish the task" heading used with a close-issue ending instead of the PR+review flow. Remaining convention violations: the missing `<h4>Diagram</h4>` section (Section 1 #1) and the wrong ending pattern for step 1.7 (Section 1 #2/3).
+**Overall:** The task provides a clear, well-structured walkthrough for setting up `Grafana` with good use of `SQL` examples and a useful reflection step. The most critical issue is that two acceptance criteria (dashboard panels and reflection comment) cannot be verified by the autochecker through standard channels (D12). The task also has a structural inconsistency: it modifies `docker-compose.yml` but uses a no-code ending pattern, with the "Finish the task" heading mismatched to a "Close the issue" body (D9, Section 1). Adding a `<h4>Diagram</h4>` section, a troubleshooting block for the `Docker` step, and checkpoints for steps 1.2 and 1.5 would improve the student experience.
