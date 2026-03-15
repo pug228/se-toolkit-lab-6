@@ -10,34 +10,60 @@ Output:
 """
 
 import json
+import os
 import sys
 from pathlib import Path
 
 import httpx
 
 # Maximum number of tool calls per question
-MAX_TOOL_CALLS = 10
+MAX_TOOL_CALLS = 8
 
 # System prompt for the documentation agent
-SYSTEM_PROMPT = """You are a documentation assistant with access to two tools:
+SYSTEM_PROMPT = """You are a documentation and system assistant with access to three tools:
 - list_files: List files in a directory
-- read_file: Read the contents of a file
+- read_file: Read the contents of a file  
+- query_api: Call the backend LMS API to query data or test endpoints
 
-To answer questions about the project documentation:
-1. Use list_files to explore the wiki directory structure
-2. Use read_file to read relevant wiki files
-3. Find the answer to the user's question in the wiki files
-4. In your final answer, provide:
+IMPORTANT: Your answers must be complete. Don't say "Let me check X" - provide the actual answer.
+If you found a list of files, report the list. If you found a framework name, report it.
+
+Tool selection guide:
+- Use list_files/read_file for:
+  - Wiki documentation questions (files in wiki/)
+  - Source code questions (backend/, frontend/, agent.py)
+  - Configuration file questions (docker-compose.yml, .env files, pyproject.toml)
+  - File structure questions
+  
+- Use query_api for:
+  - Questions about data in the database (item count, learner stats)
+  - Questions about API behavior (status codes, responses)
+  - Questions about analytics or metrics
+  - Testing API endpoints (use auth=false to test unauthenticated access)
+
+To answer questions:
+1. Choose the right tool for the question type
+2. For source code questions: use read_file to read Python files directly (e.g., backend/app/main.py)
+3. For wiki questions: use list_files to explore wiki/, then read_file to read relevant files  
+4. For file listing questions: use list_files to find files, then provide the list in your answer
+   - File names often indicate their purpose (e.g., items.py handles items, analytics.py handles analytics)
+   - Example: If you see ["items.py", "analytics.py"], answer: "items.py handles items, analytics.py handles analytics"
+5. Use query_api to query the backend API for data or test endpoints
+6. In your final answer, provide:
    - A clear, concise answer based on what you found
-   - The source reference in format: wiki/filename.md#section-anchor
+   - The source reference (wiki/filename.md#section) if from wiki
+   - The file path if from source code
+   - The API endpoint if from query_api
 
 Rules:
 - Make only ONE tool call at a time
 - Always wait for the tool result before making another call
-- When you find the answer, stop calling tools and provide the final answer
+- When you have enough information to answer, STOP calling tools and provide the final answer immediately
 - Maximum 10 tool calls per question
-- Always read the actual file content - don't assume what's in it
-- If a file doesn't contain the answer, try another relevant file
+- For file listing questions, once you have the file list, provide the answer right away
+- File names typically indicate their domain/purpose - you don't need to read every file
+- For source code questions about frameworks/imports: READ the main Python file (e.g., main.py) and report what you find
+- Your answer should be complete and standalone - not "let me check X" but "X handles Y"
 """
 
 
@@ -51,6 +77,31 @@ def load_env() -> dict:
             file=sys.stderr,
         )
         sys.exit(1)
+
+    env = {}
+    for line in env_file.read_text().splitlines():
+        line = line.strip()
+        if not line or line.startswith("#"):
+            continue
+        if "=" not in line:
+            continue
+        key, _, value = line.partition("=")
+        key = key.strip()
+        value = value.strip().strip('"').strip("'")
+        env[key] = value
+
+    return env
+
+
+def load_docker_env() -> dict:
+    """Load environment variables from .env.docker.secret."""
+    env_file = Path(__file__).parent / ".env.docker.secret"
+    if not env_file.exists():
+        print(
+            f"Warning: {env_file} not found, using environment variables only",
+            file=sys.stderr,
+        )
+        return {}
 
     env = {}
     for line in env_file.read_text().splitlines():
@@ -147,6 +198,78 @@ def list_files(path: str) -> str:
         return f"Error listing directory: {e}"
 
 
+def query_api(
+    method: str, path: str, body: str | None = None, auth: bool = True
+) -> str:
+    """Call the backend LMS API.
+
+    Args:
+        method: HTTP method (GET, POST, PUT, DELETE, PATCH)
+        path: API path (e.g., /items/, /analytics/completion-rate)
+        body: Optional JSON request body (for POST/PUT/PATCH)
+        auth: Whether to include authentication header (default: True)
+
+    Returns:
+        JSON string with status_code and body, or an error message
+    """
+    # Load docker env for LMS_API_KEY
+    docker_env = load_docker_env()
+
+    # Get API key from environment variable first, then from .env.docker.secret
+    lms_api_key = os.environ.get("LMS_API_KEY") or docker_env.get("LMS_API_KEY")
+
+    # Get API base URL from environment variable, then from .env.docker.secret, then default
+    # Caddy runs on port 42002 and proxies to the backend
+    agent_api_base = (
+        os.environ.get("AGENT_API_BASE_URL")
+        or docker_env.get("AGENT_API_BASE_URL")
+        or "http://localhost:42002"
+    )
+
+    if auth and not lms_api_key:
+        return "Error: LMS_API_KEY not configured"
+
+    url = f"{agent_api_base}{path}"
+
+    headers = {
+        "Content-Type": "application/json",
+    }
+
+    # Only add auth header if auth is True and we have a key
+    if auth and lms_api_key:
+        headers["Authorization"] = f"Bearer {lms_api_key}"
+
+    # print(f"Calling API: {method} {url} (auth={auth})", file=sys.stderr)
+
+    try:
+        with httpx.Client(timeout=30.0) as client:
+            if method.upper() == "GET":
+                response = client.get(url, headers=headers)
+            elif method.upper() == "POST":
+                response = client.post(url, headers=headers, content=body or "{}")
+            elif method.upper() == "PUT":
+                response = client.put(url, headers=headers, content=body or "{}")
+            elif method.upper() == "DELETE":
+                response = client.delete(url, headers=headers)
+            elif method.upper() == "PATCH":
+                response = client.patch(url, headers=headers, content=body or "{}")
+            else:
+                return f"Error: Unknown method: {method}"
+
+            result = {
+                "status_code": response.status_code,
+                "body": response.text,
+            }
+            return json.dumps(result)
+
+    except httpx.TimeoutException:
+        return "Error: API request timed out"
+    except httpx.RequestError as e:
+        return f"Error: Cannot reach API: {e}"
+    except Exception as e:
+        return f"Error: {e}"
+
+
 # Tool definitions for OpenAI function calling
 TOOLS = [
     {
@@ -183,12 +306,43 @@ TOOLS = [
             },
         },
     },
+    {
+        "type": "function",
+        "function": {
+            "name": "query_api",
+            "description": "Call the backend LMS API to query data or test endpoints. Use this for questions about database contents, API behavior, or analytics. Set auth=false to test unauthenticated access.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "method": {
+                        "type": "string",
+                        "description": "HTTP method (GET, POST, PUT, DELETE, PATCH)",
+                        "enum": ["GET", "POST", "PUT", "DELETE", "PATCH"],
+                    },
+                    "path": {
+                        "type": "string",
+                        "description": "API path (e.g., /items/, /analytics/completion-rate)",
+                    },
+                    "body": {
+                        "type": "string",
+                        "description": "Optional JSON request body (for POST/PUT/PATCH)",
+                    },
+                    "auth": {
+                        "type": "boolean",
+                        "description": "Whether to include authentication header (default: true). Set to false to test unauthenticated access.",
+                    },
+                },
+                "required": ["method", "path"],
+            },
+        },
+    },
 ]
 
 # Map of tool names to functions
 TOOL_FUNCTIONS = {
     "read_file": read_file,
     "list_files": list_files,
+    "query_api": query_api,
 }
 
 
@@ -270,7 +424,17 @@ def execute_tool(tool_name: str, args: dict) -> str:
 
     func = TOOL_FUNCTIONS[tool_name]
 
-    # Extract the 'path' argument
+    # For query_api, pass method, path, body, and auth
+    if tool_name == "query_api":
+        method = args.get("method", "GET")
+        path = args.get("path", "")
+        body = args.get("body")
+        auth = args.get("auth", True)  # Default to True
+        if not path:
+            return "Error: Missing required argument 'path'"
+        return func(method, path, body, auth)
+
+    # For read_file and list_files, pass path
     path = args.get("path", "")
     if not path:
         return "Error: Missing required argument 'path'"
@@ -388,6 +552,7 @@ def extract_source(answer: str, tool_calls: list[dict]) -> str:
     Looks for patterns like:
     - wiki/filename.md#section
     - wiki/filename.md
+    - backend/app/path/file.py
 
     Args:
         answer: The answer text
@@ -407,15 +572,8 @@ def extract_source(answer: str, tool_calls: list[dict]) -> str:
     for tc in tool_calls:
         if tc.get("tool") == "read_file":
             path = tc.get("args", {}).get("path", "")
-            if path.startswith("wiki/"):
-                # Try to find the "Merge conflict" section in the result
-                result = tc.get("result", "")
-                # Look for ## Merge conflict section
-                if re.search(
-                    r"^##\s+Merge conflict", result, re.MULTILINE | re.IGNORECASE
-                ):
-                    return f"{path}#merge-conflict"
-                # Fallback: return just the path
+            # Return the last file that was read (most relevant)
+            if path.endswith(".py") or path.endswith(".md") or path.endswith(".yml"):
                 return path
 
     return ""
